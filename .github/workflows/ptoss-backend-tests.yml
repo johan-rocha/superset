@@ -25,6 +25,7 @@ jobs:
 
     env:
       PYTHONPATH: ${{ github.workspace }}
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
       SUPERSET_TESTENV: true
       SUPERSET_SECRET_KEY: not-a-secret
 
@@ -49,6 +50,8 @@ jobs:
       - name: Run PTOSS unit tests with coverage
         run: |
           python -m pytest -q \
+            -p pytest_cov.plugin \
+            --confcutdir=tests/unit_tests/utils \
             tests/unit_tests/utils/ptoss_unitarios_test.py \
             tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
             tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \

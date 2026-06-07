@@ -348,10 +348,16 @@ Para baixar o relatório HTML: GitHub > repositório > Actions > execução
 `PTOSS Backend Tests` > seção `Artifacts` > `ptoss-coverage-reports`. Depois,
 abra `htmlcov/index.html`.
 
+O workflow usa `--confcutdir=tests/unit_tests/utils` para não carregar o
+`tests/conftest.py` global do Superset, pois esse arquivo inicializa a aplicação
+inteira e não é necessário para os testes unitários da atividade.
+
 Com o ambiente local configurado, o comando equivalente é:
 
 ```bash
-python3 -m pytest \
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
+  -p pytest_cov.plugin \
+  --confcutdir=tests/unit_tests/utils \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
   tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
   tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
@@ -471,13 +477,20 @@ antes de entregar ou enviar alterações.
 Com o ambiente configurado:
 
 ```bash
-python3 -m pytest tests/unit_tests/utils/ptoss_unitarios_test.py tests/unit_tests/utils/urls_tests.py -q
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
+  --confcutdir=tests/unit_tests/utils \
+  tests/unit_tests/utils/ptoss_unitarios_test.py \
+  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
+  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
+  -q
 ```
 
 Para cobertura:
 
 ```bash
-python3 -m pytest \
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
+  -p pytest_cov.plugin \
+  --confcutdir=tests/unit_tests/utils \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
   tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
   tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
