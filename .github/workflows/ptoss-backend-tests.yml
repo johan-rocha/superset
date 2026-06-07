@@ -38,12 +38,13 @@ jobs:
       - name: Setup Python backend
         uses: ./.github/actions/setup-backend/
         with:
-          python-version: current
+          python-version: previous
 
       - name: Syntax check
         run: |
           python -m py_compile \
             superset/utils/urls.py \
+            tests/unit_tests/utils/conftest.py \
             tests/unit_tests/utils/urls_tests.py \
             tests/unit_tests/utils/ptoss_unitarios_test.py
 
@@ -53,8 +54,7 @@ jobs:
             -p pytest_cov.plugin \
             --confcutdir=tests/unit_tests/utils \
             tests/unit_tests/utils/ptoss_unitarios_test.py \
-            tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
-            tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
+            tests/unit_tests/utils/urls_tests.py \
             --cov=superset.tasks.utils \
             --cov=superset.utils.core \
             --cov=superset.utils.oauth2 \

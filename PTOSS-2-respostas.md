@@ -306,7 +306,7 @@ usuário ausente, delimitador dentro de aspas ou `ERROR` sem TTL expirado.
 Foi realizada checagem sintática dos arquivos alterados:
 
 ```bash
-python3 -m py_compile superset/utils/urls.py tests/unit_tests/utils/urls_tests.py tests/unit_tests/utils/ptoss_unitarios_test.py
+python3 -m py_compile superset/utils/urls.py tests/unit_tests/utils/conftest.py tests/unit_tests/utils/urls_tests.py tests/unit_tests/utils/ptoss_unitarios_test.py
 ```
 
 Resultado: comando executado com sucesso.
@@ -350,7 +350,10 @@ abra `htmlcov/index.html`.
 
 O workflow usa `--confcutdir=tests/unit_tests/utils` para não carregar o
 `tests/conftest.py` global do Superset, pois esse arquivo inicializa a aplicação
-inteira e não é necessário para os testes unitários da atividade.
+inteira e não é necessário para os testes unitários da atividade. O
+`tests/unit_tests/utils/conftest.py` local também substitui `nh3` por um stub
+simples, porque essa dependência nativa é importada no topo de
+`superset.utils.core`, mas não é exercitada pelos métodos testados.
 
 Com o ambiente local configurado, o comando equivalente é:
 
@@ -359,8 +362,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
   -p pytest_cov.plugin \
   --confcutdir=tests/unit_tests/utils \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
-  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
-  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
+  tests/unit_tests/utils/urls_tests.py \
   --cov=superset.tasks.utils \
   --cov=superset.utils.core \
   --cov=superset.utils.oauth2 \
@@ -480,8 +482,7 @@ Com o ambiente configurado:
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
   --confcutdir=tests/unit_tests/utils \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
-  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
-  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
+  tests/unit_tests/utils/urls_tests.py \
   -q
 ```
 
@@ -492,8 +493,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
   -p pytest_cov.plugin \
   --confcutdir=tests/unit_tests/utils \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
-  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
-  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
+  tests/unit_tests/utils/urls_tests.py \
   --cov=superset.tasks.utils \
   --cov=superset.utils.core \
   --cov=superset.utils.oauth2 \
