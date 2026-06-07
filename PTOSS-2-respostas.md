@@ -351,9 +351,10 @@ abra `htmlcov/index.html`.
 O workflow usa `--confcutdir=tests/unit_tests/utils` para não carregar o
 `tests/conftest.py` global do Superset, pois esse arquivo inicializa a aplicação
 inteira e não é necessário para os testes unitários da atividade. O
-`tests/unit_tests/utils/conftest.py` local também substitui `nh3` por um stub
-simples, porque essa dependência nativa é importada no topo de
-`superset.utils.core`, mas não é exercitada pelos métodos testados.
+`tests/unit_tests/utils/conftest.py` local usa stubs para impedir a execução do
+`superset/__init__.py` pesado e para evitar dependências nativas como `nh3` e
+`cryptography`, que são importadas no bootstrap do projeto, mas não são
+exercitadas pelos métodos testados.
 
 Com o ambiente local configurado, o comando equivalente é:
 
