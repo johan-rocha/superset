@@ -12,7 +12,7 @@ com decisões compostas, permitindo aplicar MC/DC em todos eles.
 | Integrante | Responsabilidade principal |
 | --- | --- |
 | Integrante 1 | `get_current_user` |
-| Integrante 2 | `parse_js_uri_path_item` |
+| Integrante 2 | `get_dev_env_label` |
 | Integrante 3 | `user_label` |
 | Integrante 4 | `split` |
 | Integrante 5 | `check_for_oauth2` |
@@ -35,6 +35,7 @@ Arquivos envolvidos:
 | `superset/utils/oauth2.py` | Fluxo auxiliar de OAuth2 |
 | `superset/utils/screenshots.py` | Controle de payload/cache de screenshots |
 | `superset/tasks/utils.py` | Utilitários para execução de tarefas assíncronas |
+| `superset/utils/version.py` | Metadados de versão/ambiente de desenvolvimento |
 | `superset/utils/urls.py` | Manipulação de URLs, usada na parte de TDD |
 
 ## 3. Planejamento dos testes
@@ -47,8 +48,8 @@ Critérios usados:
 
 | Critério | Aplicação |
 | --- | --- |
-| Particionamento de equivalência | Usuário autenticado/anônimo/ausente, usuário completo/incompleto, estados de cache |
-| Análise de valor limite | `None`, string vazia, item sem delimitador, imagem ausente |
+| Particionamento de equivalência | Usuário autenticado/anônimo/ausente, ambiente com branch/SHA, usuário completo/incompleto, estados de cache |
+| Análise de valor limite | `None`, string vazia, item sem delimitador, imagem ausente, SHA truncado |
 | Cobertura de branches | Caminhos verdadeiro/falso das decisões |
 | MC/DC | Cada condição atômica foi variada para demonstrar impacto independente na decisão |
 | TDD | Aplicado separadamente em `modify_url_query` |
@@ -58,7 +59,7 @@ Critérios usados:
 | ID | Função/método | Decisão composta analisada |
 | --- | --- | --- |
 | M1 | `get_current_user` | `hasattr(g, "user") and g.user`; `user and not user.is_anonymous` |
-| M2 | `parse_js_uri_path_item` | `eval_undefined and item in (...)`; `unquote and item` |
+| M2 | `get_dev_env_label` | `branch and sha` |
 | M3 | `user_label` | `user.first_name and user.last_name` |
 | M4 | `split` | `parens == 0 and not quotes and character == delimiter` |
 | M5 | `check_for_oauth2` | `database.is_oauth2_enabled() and database.db_engine_spec.needs_oauth2(ex)` |
@@ -69,7 +70,7 @@ Critérios usados:
 | Método/função | Arquivo |
 | --- | --- |
 | `get_current_user` | `superset/tasks/utils.py` |
-| `parse_js_uri_path_item` | `superset/utils/core.py` |
+| `get_dev_env_label` | `superset/utils/version.py` |
 | `user_label` | `superset/utils/core.py` |
 | `split` | `superset/utils/core.py` |
 | `check_for_oauth2` | `superset/utils/oauth2.py` |
@@ -126,34 +127,26 @@ user and not user.is_anonymous
 CT4/CT5 mostram o efeito de `not user.is_anonymous`. CT4/CT6 mostram o efeito
 da presença do usuário.
 
-### M2 - `parse_js_uri_path_item`
+### M2 - `get_dev_env_label`
 
-Objetivo: interpretar componentes de URL vindos do JavaScript, tratando
-`null`/`undefined` e aplicando `unquote` quando solicitado.
+Objetivo: montar o rótulo de ambiente de desenvolvimento a partir da branch e
+do SHA disponíveis.
 
-Decisão 1:
-
-```python
-eval_undefined and item in ("null", "undefined")
-```
-
-| Caso | Entrada | C1: `eval_undefined` | C2: item sentinela | Decisão | Esperado |
-| --- | --- | --- | --- | --- | --- |
-| CT5 | `"undefined"`, `True` | T | T | T | `None` |
-| CT6 | `"undefined"`, `False` | F | T | F | `"undefined"` |
-| CT7 | `"dashboard"`, `True` | T | F | F | `"dashboard"` |
-
-Decisão 2:
+Decisão:
 
 ```python
-unquote and item
+branch and sha
 ```
 
-| Caso | Entrada | C1: `unquote` | C2: item presente | Decisão | Esperado |
-| --- | --- | --- | --- | --- | --- |
-| CT8 | `"sales%2Fnorth"`, `True` | T | T | T | `"sales/north"` |
-| CT9 | `"sales%2Fnorth"`, `False` | F | T | F | `"sales%2Fnorth"` |
-| CT10 | `None`, `True` | T | F | F | `None` |
+| Caso | Branch | SHA | C1: branch presente | C2: SHA presente | Decisão | Esperado |
+| --- | --- | --- | --- | --- | --- | --- |
+| CT7 | `"feature/mcdc"` | `"abcdef1234567890"` | T | T | T | `"feature/mcdc@abcdef12"` |
+| CT8 | `None` | `"abcdef1234567890"` | F | T | F | `"@abcdef12"` |
+| CT9 | `"feature/mcdc"` | `None` | T | F | F | `"feature/mcdc"` |
+
+CT7/CT8 mostram o efeito independente de C1. CT7/CT9 mostram o efeito
+independente de C2. O SHA também cobre o valor limite de truncamento para 8
+caracteres.
 
 ### M3 - `user_label`
 
@@ -262,8 +255,8 @@ condição ou subdecisão específica, permitindo observar seu efeito no resulta
 ## 6. Integração entre caixa-preta e caixa-branca
 
 A caixa-preta definiu classes de entrada com base no comportamento esperado:
-usuário autenticado/anônimo/ausente, usuário completo/incompleto, URL
-codificada, estados de cache e falha OAuth2.
+usuário autenticado/anônimo/ausente, ambiente com branch/SHA, usuário
+completo/incompleto, estados de cache e falha OAuth2.
 
 A caixa-branca complementou essa visão ao revelar os predicados internos que
 precisavam ser cobertos por MC/DC. Sem a leitura do código, seria fácil testar
@@ -273,6 +266,7 @@ usuário ausente, delimitador dentro de aspas ou `ERROR` sem TTL expirado.
 | Lacuna funcional | Complemento estrutural |
 | --- | --- |
 | Usuário autenticado seria testado, mas usuário anônimo poderia ser tratado errado | MC/DC variou presença de `g.user` e `is_anonymous` |
+| Ter apenas branch ou apenas SHA muda o rótulo do ambiente | MC/DC variou branch e SHA separadamente |
 | Separar string por vírgula não cobre aspas e parênteses | MC/DC incluiu vírgula dentro de aspas e parênteses |
 | Testar usuário completo não cobre fallback para `username` | MC/DC variou nome e sobrenome |
 | Testar OAuth2 habilitado não cobre exceção que não exige OAuth2 | MC/DC variou a resposta de `needs_oauth2` |
@@ -283,7 +277,7 @@ usuário ausente, delimitador dentro de aspas ou `ERROR` sem TTL expirado.
 | Funcionalidade | Função/método | Teste |
 | --- | --- | --- |
 | Resolução do usuário atual | `get_current_user` | `test_get_current_user_mcdc_user_presence_decision` e `test_get_current_user_mcdc_anonymous_user_decision` |
-| Interpretação de item de URL | `parse_js_uri_path_item` | `test_parse_js_uri_path_item_mcdc_eval_undefined_decision` e `test_parse_js_uri_path_item_mcdc_unquote_decision` |
+| Rótulo de ambiente de desenvolvimento | `get_dev_env_label` | `test_get_dev_env_label_mcdc_branch_and_sha_decision` |
 | Label de usuário | `user_label` | `test_user_label_mcdc_full_name_decision` |
 | Split respeitando contexto | `split` | `test_split_mcdc_delimiter_decision` |
 | Detecção de OAuth2 | `check_for_oauth2` | `test_check_for_oauth2_mcdc_decision` |
@@ -333,6 +327,7 @@ python3 -m pytest \
   --cov=superset.utils.core \
   --cov=superset.utils.oauth2 \
   --cov=superset.utils.screenshots \
+  --cov=superset.utils.version \
   --cov=superset.utils.urls \
   --cov-branch \
   --cov-report=term-missing

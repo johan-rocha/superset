@@ -1,0 +1,56 @@
+name: PTOSS Backend Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "ptoss-*"
+    paths:
+      - "superset/**/*.py"
+      - "tests/**/*.py"
+      - ".github/workflows/ptoss-backend-tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      SUPERSET_TESTENV: true
+      SUPERSET_SECRET_KEY: not-a-secret
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Python backend
+        uses: ./.github/actions/setup-backend/
+        with:
+          python-version: current
+
+      - name: Syntax check
+        run: |
+          python -m py_compile \
+            superset/utils/urls.py \
+            tests/unit_tests/utils/urls_tests.py \
+            tests/unit_tests/utils/ptoss_unitarios_test.py
+
+      - name: Run PTOSS unit tests
+        run: |
+          python -m pytest -q \
+            tests/unit_tests/utils/ptoss_unitarios_test.py \
+            tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
+            tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
+            --maxfail=1 \
+            --tb=short \
+            --disable-warnings

@@ -22,7 +22,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from superset.tasks import utils as task_utils
-from superset.utils.core import parse_js_uri_path_item, split, user_label
+from superset.utils import version as version_utils
+from superset.utils.core import split, user_label
 from superset.utils.oauth2 import check_for_oauth2
 from superset.utils.screenshots import ScreenshotCachePayload, StatusValues
 
@@ -55,16 +56,23 @@ def test_get_current_user_mcdc_anonymous_user_decision(
     assert task_utils.get_current_user() is None
 
 
-def test_parse_js_uri_path_item_mcdc_eval_undefined_decision() -> None:
-    assert parse_js_uri_path_item("undefined", eval_undefined=True) is None
-    assert parse_js_uri_path_item("undefined", eval_undefined=False) == "undefined"
-    assert parse_js_uri_path_item("dashboard", eval_undefined=True) == "dashboard"
+def test_get_dev_env_label_mcdc_branch_and_sha_decision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for env_var in ("GITHUB_HEAD_REF", "GITHUB_REF_NAME", "GITHUB_SHA"):
+        monkeypatch.delenv(env_var, raising=False)
 
+    monkeypatch.setattr(version_utils, "_get_local_branch", lambda: "feature/mcdc")
+    monkeypatch.setattr(version_utils, "_get_local_sha", lambda: "abcdef1234567890")
+    assert version_utils.get_dev_env_label() == "feature/mcdc@abcdef12"
 
-def test_parse_js_uri_path_item_mcdc_unquote_decision() -> None:
-    assert parse_js_uri_path_item("sales%2Fnorth", unquote=True) == "sales/north"
-    assert parse_js_uri_path_item("sales%2Fnorth", unquote=False) == "sales%2Fnorth"
-    assert parse_js_uri_path_item(None, unquote=True) is None
+    monkeypatch.setattr(version_utils, "_get_local_branch", lambda: None)
+    monkeypatch.setattr(version_utils, "_get_local_sha", lambda: "abcdef1234567890")
+    assert version_utils.get_dev_env_label() == "@abcdef12"
+
+    monkeypatch.setattr(version_utils, "_get_local_branch", lambda: "feature/mcdc")
+    monkeypatch.setattr(version_utils, "_get_local_sha", lambda: None)
+    assert version_utils.get_dev_env_label() == "feature/mcdc"
 
 
 def test_user_label_mcdc_full_name_decision() -> None:
