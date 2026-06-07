@@ -46,12 +46,43 @@ jobs:
             tests/unit_tests/utils/urls_tests.py \
             tests/unit_tests/utils/ptoss_unitarios_test.py
 
-      - name: Run PTOSS unit tests
+      - name: Run PTOSS unit tests with coverage
         run: |
           python -m pytest -q \
             tests/unit_tests/utils/ptoss_unitarios_test.py \
             tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
             tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
+            --cov=superset.tasks.utils \
+            --cov=superset.utils.core \
+            --cov=superset.utils.oauth2 \
+            --cov=superset.utils.screenshots \
+            --cov=superset.utils.urls \
+            --cov=superset.utils.version \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:htmlcov \
             --maxfail=1 \
             --tb=short \
             --disable-warnings
+
+      - name: Add coverage summary
+        run: |
+          {
+            echo "## PTOSS coverage"
+            echo
+            echo '```text'
+            python -m coverage report --show-missing
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ptoss-coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/
+          if-no-files-found: ignore
+          retention-days: 14

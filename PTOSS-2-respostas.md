@@ -54,7 +54,24 @@ Critérios usados:
 | MC/DC | Cada condição atômica foi variada para demonstrar impacto independente na decisão |
 | TDD | Aplicado separadamente em `modify_url_query` |
 
-## 4. Métodos selecionados para MC/DC
+## 4. Descrição das técnicas utilizadas
+
+Foram usadas técnicas de caixa-preta e caixa-branca de forma complementar.
+Caixa-preta orientou a escolha das classes de entrada e saídas esperadas sem
+depender da implementação. Caixa-branca orientou a seleção dos métodos e a
+variação das condições internas, especialmente nos casos de MC/DC.
+
+As principais técnicas aplicadas foram:
+
+| Técnica | Uso na atividade |
+| --- | --- |
+| Particionamento de equivalência | Separação de entradas válidas, ausentes, incompletas e estados distintos |
+| Análise de valor limite | Uso de `None`, strings vazias, SHA truncado, delimitador ausente e imagem ausente |
+| Cobertura de branches | Exercício dos caminhos verdadeiro e falso das decisões relevantes |
+| MC/DC | Variação independente de cada condição atômica em decisões compostas |
+| TDD | Criação de testes antes da correção em `modify_url_query` |
+
+## 5. Métodos selecionados para MC/DC
 
 | ID | Função/método | Decisão composta analisada |
 | --- | --- | --- |
@@ -77,7 +94,7 @@ Critérios usados:
 | `ScreenshotCachePayload.should_trigger_task` | `superset/utils/screenshots.py` |
 | `modify_url_query` | `superset/utils/urls.py` |
 
-## 5. Testes desenvolvidos
+## 6. Testes desenvolvidos
 
 Arquivo principal criado:
 
@@ -252,7 +269,7 @@ Casos MC/DC principais:
 O baseline CT22 deixa os termos da decisão falsos. Os demais casos ativam uma
 condição ou subdecisão específica, permitindo observar seu efeito no resultado.
 
-## 6. Integração entre caixa-preta e caixa-branca
+## 7. Integração entre caixa-preta e caixa-branca
 
 A caixa-preta definiu classes de entrada com base no comportamento esperado:
 usuário autenticado/anônimo/ausente, ambiente com branch/SHA, usuário
@@ -272,7 +289,7 @@ usuário ausente, delimitador dentro de aspas ou `ERROR` sem TTL expirado.
 | Testar OAuth2 habilitado não cobre exceção que não exige OAuth2 | MC/DC variou a resposta de `needs_oauth2` |
 | Testar cache pendente não cobre estados `ERROR`, `COMPUTING` e `UPDATED` | MC/DC ativou cada termo da decisão |
 
-## 7. Rastreabilidade
+## 8. Rastreabilidade
 
 | Funcionalidade | Função/método | Teste |
 | --- | --- | --- |
@@ -284,7 +301,7 @@ usuário ausente, delimitador dentro de aspas ou `ERROR` sem TTL expirado.
 | Disparo de tarefa de screenshot | `ScreenshotCachePayload.should_trigger_task` | `test_screenshot_payload_should_trigger_task_mcdc_decision` |
 | Melhoria por TDD | `modify_url_query` | `test_modify_url_query_preserves_repeated_existing_parameters` e `test_modify_url_query_adds_list_values_as_repeated_parameters` |
 
-## 8. Métricas e evidências de cobertura
+## 9. Métricas e evidências de cobertura
 
 Foi realizada checagem sintática dos arquivos alterados:
 
@@ -317,12 +334,27 @@ Resultado:
 Failed to connect to localhost port 8088
 ```
 
-Com o ambiente configurado, o comando recomendado é:
+No GitHub Actions, o workflow `.github/workflows/ptoss-backend-tests.yml`
+executa os testes da atividade com cobertura. A cobertura pode ser consultada
+em três lugares:
+
+| Local | Evidência |
+| --- | --- |
+| Log do job | Saída `term-missing` do `pytest-cov` |
+| Resumo da execução | Bloco `PTOSS coverage` no `Summary` da run |
+| Artefatos | `ptoss-coverage-reports`, contendo `coverage.xml` e `htmlcov/` |
+
+Para baixar o relatório HTML: GitHub > repositório > Actions > execução
+`PTOSS Backend Tests` > seção `Artifacts` > `ptoss-coverage-reports`. Depois,
+abra `htmlcov/index.html`.
+
+Com o ambiente local configurado, o comando equivalente é:
 
 ```bash
 python3 -m pytest \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
-  tests/unit_tests/utils/urls_tests.py \
+  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
+  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
   --cov=superset.tasks.utils \
   --cov=superset.utils.core \
   --cov=superset.utils.oauth2 \
@@ -330,10 +362,12 @@ python3 -m pytest \
   --cov=superset.utils.version \
   --cov=superset.utils.urls \
   --cov-branch \
-  --cov-report=term-missing
+  --cov-report=term-missing \
+  --cov-report=xml:coverage.xml \
+  --cov-report=html:htmlcov
 ```
 
-## 9. Processo de TDD
+## 10. Processo de TDD
 
 Funcionalidade escolhida: melhoria em `modify_url_query`.
 
@@ -392,7 +426,7 @@ A refatoração reduziu manipulação manual de strings e passou a usar API pró
 da biblioteca padrão para query strings. Isso melhora legibilidade e reduz risco
 de erro em encoding.
 
-## 10. Análise crítica
+## 11. Análise crítica
 
 O principal aprendizado foi que nem todo método é adequado para MC/DC. Métodos
 com apenas branches simples devem ser avaliados com cobertura de branches, mas
@@ -411,18 +445,28 @@ O TDD em `modify_url_query` mostrou valor prático: o teste descreveu uma perda
 real de comportamento, e a implementação ficou mais simples ao usar
 `urllib.parse.urlencode` com `doseq=True`.
 
-## 11. Conclusão
+Lições aprendidas pela equipe:
+
+| Tema | Reflexão |
+| --- | --- |
+| Complementaridade | Caixa-preta ajuda a pensar no comportamento; caixa-branca revela condições internas esquecidas |
+| Testabilidade | Funções utilitárias pequenas são mais testáveis que trechos acoplados a Flask, banco ou cache |
+| Sistemas reais | Dependências, configuração e importações tornam a execução local mais difícil |
+| Limitações | MC/DC não é adequado para métodos sem decisão composta e não substitui testes de integração |
+| TDD | Escrever o teste primeiro deixou o defeito de `modify_url_query` mais claro e guiou uma correção menor |
+
+## 12. Conclusão
 
 A atividade aplicou testes unitários em 6 métodos compatíveis com MC/DC, além de
 uma melhoria desenvolvida por TDD. A seleção final evita forçar MC/DC em métodos
 sem decisão composta e torna explícita a relação entre condições, casos de teste
 e resultados esperados.
 
-Como próximos passos, a equipe deve ativar o ambiente de desenvolvimento do
-Superset, executar `pytest` com cobertura e rodar `pre-commit run --all-files`
+Como próximos passos, a equipe deve executar o workflow no fork, anexar ou
+referenciar o artefato de cobertura gerado e rodar `pre-commit run --all-files`
 antes de entregar ou enviar alterações.
 
-## 12. Instruções de execução
+## 13. Instruções de execução
 
 Com o ambiente configurado:
 
@@ -435,16 +479,28 @@ Para cobertura:
 ```bash
 python3 -m pytest \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
-  tests/unit_tests/utils/urls_tests.py \
+  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_preserves_repeated_existing_parameters \
+  tests/unit_tests/utils/urls_tests.py::test_modify_url_query_adds_list_values_as_repeated_parameters \
   --cov=superset.tasks.utils \
   --cov=superset.utils.core \
   --cov=superset.utils.oauth2 \
   --cov=superset.utils.screenshots \
+  --cov=superset.utils.version \
   --cov=superset.utils.urls \
   --cov-branch \
-  --cov-report=html \
+  --cov-report=xml:coverage.xml \
+  --cov-report=html:htmlcov \
   --cov-report=term-missing
 ```
+
+Para executar no GitHub Actions:
+
+1. Envie as alterações para uma branch `ptoss-*` ou `feat/ptoss-*`.
+2. Acesse `Actions > PTOSS Backend Tests`.
+3. Abra a execução mais recente.
+4. Consulte o bloco `PTOSS coverage` no `Summary`.
+5. Baixe o artefato `ptoss-coverage-reports` para obter `coverage.xml` e
+   `htmlcov/index.html`.
 
 Antes de enviar alterações ao repositório:
 
