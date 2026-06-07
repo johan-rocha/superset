@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - "ptoss-*"
+      - "feat/ptoss-*"
     paths:
       - "superset/**/*.py"
       - "tests/**/*.py"
