@@ -1,0 +1,91 @@
+name: PTOSS Backend Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "ptoss-*"
+      - "feat/ptoss-*"
+    paths:
+      - "superset/**/*.py"
+      - "tests/**/*.py"
+      - ".github/workflows/ptoss-backend-tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      SUPERSET_TESTENV: true
+      SUPERSET_SECRET_KEY: not-a-secret
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Python backend
+        uses: ./.github/actions/setup-backend/
+        with:
+          python-version: previous
+
+      - name: Syntax check
+        run: |
+          python -m py_compile \
+            superset/utils/urls.py \
+            tests/unit_tests/utils/conftest.py \
+            tests/unit_tests/utils/urls_tests.py \
+            tests/unit_tests/utils/ptoss_unitarios_test.py
+
+      - name: Run PTOSS unit tests with coverage
+        run: |
+          python -m pytest -q \
+            -p pytest_cov.plugin \
+            --confcutdir=tests/unit_tests/utils \
+            tests/unit_tests/utils/ptoss_unitarios_test.py \
+            tests/unit_tests/utils/urls_tests.py \
+            --cov=superset.tasks.utils \
+            --cov=superset.utils.core \
+            --cov=superset.utils.oauth2 \
+            --cov=superset.utils.screenshots \
+            --cov=superset.utils.urls \
+            --cov=superset.utils.version \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:htmlcov \
+            --maxfail=1 \
+            --tb=short \
+            --disable-warnings
+
+      - name: Add coverage summary
+        run: |
+          {
+            echo "## PTOSS coverage"
+            echo
+            echo '```text'
+            python -m coverage report --show-missing
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ptoss-coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/
+          if-no-files-found: ignore
+          retention-days: 14
