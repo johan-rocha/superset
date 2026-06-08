@@ -108,6 +108,12 @@ Também foram adicionados testes de TDD em:
 tests/unit_tests/utils/urls_tests.py
 ```
 
+Também foi criado um teste em formato compatível com PR upstream:
+
+```text
+tests/unit_tests/utils/version_tests.py
+```
+
 ### M1 - `get_current_user`
 
 Objetivo: obter o username do usuário atual associado ao contexto de execução,
@@ -164,6 +170,87 @@ branch and sha
 CT7/CT8 mostram o efeito independente de C1. CT7/CT9 mostram o efeito
 independente de C2. O SHA também cobre o valor limite de truncamento para 8
 caracteres.
+
+#### Testes existentes
+
+Não foi encontrado teste unitário direto para `get_dev_env_label`. O arquivo
+existente de versionamento (`superset/utils/version.py`) era exercitado
+indiretamente por outros fluxos, mas sem validar explicitamente a formação do
+rótulo de ambiente de desenvolvimento.
+
+#### Projeto dos Casos de Testes
+
+O teste foi projetado para ser reaproveitável como PR apenas de teste no
+Superset oficial, sem depender da atividade PTOSS. Por isso, ele foi colocado em
+`tests/unit_tests/utils/version_tests.py`, com nome e estrutura compatíveis com a
+suíte unitária existente.
+
+#### Testes Caixa-Preta
+
+##### Particionamento de Equivalência
+
+| Classe | Entrada representativa | Saída esperada |
+| --- | --- | --- |
+| Branch e SHA disponíveis | branch local + SHA local | `"branch@sha8"` |
+| Apenas SHA disponível | sem branch + SHA local | `"@sha8"` |
+| Apenas branch disponível | branch local + sem SHA | `"branch"` |
+| Nenhuma informação disponível | sem branch + sem SHA | `""` |
+| Ambiente GitHub Actions | `GITHUB_HEAD_REF` + `GITHUB_SHA` | usa variáveis de ambiente |
+
+##### Análise de Valor Limite
+
+| Valor limite | Justificativa | Esperado |
+| --- | --- | --- |
+| SHA maior que 8 caracteres | A função deve truncar o SHA para exibição curta | primeiros 8 caracteres |
+| Branch `None` | Ausência de branch deve cair no formato com apenas SHA | `"@sha8"` |
+| SHA `None` | Ausência de SHA deve retornar apenas branch | `"branch"` |
+| Branch e SHA `None` | Ausência total de dados deve retornar string vazia | `""` |
+
+#### Testes Caixa-Branca
+
+##### Tabela MC/DC
+
+Decisão analisada:
+
+```python
+branch and sha
+```
+
+| Caso | C1: branch presente | C2: SHA presente | Decisão | Resultado |
+| --- | --- | --- | --- | --- |
+| V1 | T | T | T | `"feature/version-label@abcdef12"` |
+| V2 | F | T | F | `"@abcdef12"` |
+| V3 | T | F | F | `"feature/version-label"` |
+| V4 | F | F | F | `""` |
+
+V1/V2 demonstram o efeito independente de `branch`. V1/V3 demonstram o efeito
+independente de `sha`.
+
+##### Cobertura Estrutural
+
+O teste cobre os ramos principais de `get_dev_env_label`: branch com SHA, apenas
+SHA, apenas branch, ausência de ambos e precedência das variáveis de ambiente do
+GitHub Actions sobre os valores locais.
+
+#### Implementação dos Testes
+
+Foram implementados:
+
+```text
+test_get_dev_env_label_formats_branch_and_sha
+test_get_dev_env_label_prefers_github_environment
+```
+
+O primeiro teste usa parametrização para cobrir as classes de equivalência. O
+segundo valida a regra de precedência entre variáveis de ambiente e fallback
+local.
+
+#### Resultado da Execução e Cobertura
+
+O arquivo `tests/unit_tests/utils/version_tests.py` foi incluído no workflow
+`PTOSS Backend Tests`, tanto na checagem sintática quanto na execução com
+cobertura. O relatório final deve ser consultado no artefato
+`ptoss-coverage-reports` após a próxima execução do GitHub Actions.
 
 ### M3 - `user_label`
 
@@ -294,7 +381,7 @@ usuário ausente, delimitador dentro de aspas ou `ERROR` sem TTL expirado.
 | Funcionalidade | Função/método | Teste |
 | --- | --- | --- |
 | Resolução do usuário atual | `get_current_user` | `test_get_current_user_mcdc_user_presence_decision` e `test_get_current_user_mcdc_anonymous_user_decision` |
-| Rótulo de ambiente de desenvolvimento | `get_dev_env_label` | `test_get_dev_env_label_mcdc_branch_and_sha_decision` |
+| Rótulo de ambiente de desenvolvimento | `get_dev_env_label` | `test_get_dev_env_label_mcdc_branch_and_sha_decision`, `test_get_dev_env_label_formats_branch_and_sha` e `test_get_dev_env_label_prefers_github_environment` |
 | Label de usuário | `user_label` | `test_user_label_mcdc_full_name_decision` |
 | Split respeitando contexto | `split` | `test_split_mcdc_delimiter_decision` |
 | Detecção de OAuth2 | `check_for_oauth2` | `test_check_for_oauth2_mcdc_decision` |
@@ -306,7 +393,7 @@ usuário ausente, delimitador dentro de aspas ou `ERROR` sem TTL expirado.
 Foi realizada checagem sintática dos arquivos alterados:
 
 ```bash
-python3 -m py_compile superset/utils/urls.py tests/unit_tests/utils/conftest.py tests/unit_tests/utils/urls_tests.py tests/unit_tests/utils/ptoss_unitarios_test.py
+python3 -m py_compile superset/utils/urls.py tests/unit_tests/utils/conftest.py tests/unit_tests/utils/urls_tests.py tests/unit_tests/utils/version_tests.py tests/unit_tests/utils/ptoss_unitarios_test.py
 ```
 
 Resultado: comando executado com sucesso.
@@ -348,7 +435,7 @@ Para baixar o relatório HTML: GitHub > repositório > Actions > execução
 `PTOSS Backend Tests` > seção `Artifacts` > `ptoss-coverage-reports`. Depois,
 abra `htmlcov/index.html`.
 
-Resultado obtido no GitHub Actions:
+Resultado obtido no GitHub Actions na execução anterior:
 
 | Arquivo | Stmts | Miss | Branch | BrPart | Cobertura |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -359,6 +446,9 @@ Resultado obtido no GitHub Actions:
 | `superset/utils/urls.py` | 32 | 15 | 10 | 0 | 50% |
 | `superset/utils/version.py` | 39 | 21 | 14 | 1 | 47% |
 | Total dos módulos instrumentados | 1437 | 892 | 462 | 2 | 30% |
+
+Após a inclusão de `tests/unit_tests/utils/version_tests.py`, a próxima execução
+do workflow deve gerar novos percentuais no artefato de cobertura.
 
 Essa métrica é calculada sobre arquivos inteiros do Superset, muitos deles com
 centenas de linhas e funções não selecionadas para a atividade. Por isso, o
@@ -383,6 +473,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
   --confcutdir=tests/unit_tests/utils \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
   tests/unit_tests/utils/urls_tests.py \
+  tests/unit_tests/utils/version_tests.py \
   --cov=superset.tasks.utils \
   --cov=superset.utils.core \
   --cov=superset.utils.oauth2 \
@@ -511,6 +602,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
   --confcutdir=tests/unit_tests/utils \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
   tests/unit_tests/utils/urls_tests.py \
+  tests/unit_tests/utils/version_tests.py \
   -q
 ```
 
@@ -522,6 +614,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest \
   --confcutdir=tests/unit_tests/utils \
   tests/unit_tests/utils/ptoss_unitarios_test.py \
   tests/unit_tests/utils/urls_tests.py \
+  tests/unit_tests/utils/version_tests.py \
   --cov=superset.tasks.utils \
   --cov=superset.utils.core \
   --cov=superset.utils.oauth2 \
