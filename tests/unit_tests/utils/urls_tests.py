@@ -46,7 +46,10 @@ def test_modify_url_query_preserves_repeated_existing_parameters() -> None:
         standalone="1",
     )
 
-    assert test_url == "http://localhost:9000/explore/?filter=a&filter=b&standalone=1"
+    assert (
+        test_url
+        == "http://localhost:9000/explore/?filter=a&filter=b&standalone=1"
+    )
 
 
 def test_modify_url_query_adds_list_values_as_repeated_parameters() -> None:
