@@ -46,6 +46,7 @@ jobs:
             superset/utils/urls.py \
             tests/unit_tests/utils/conftest.py \
             tests/unit_tests/utils/urls_tests.py \
+            tests/unit_tests/utils/version_tests.py \
             tests/unit_tests/utils/ptoss_unitarios_test.py
 
       - name: Run PTOSS unit tests with coverage
@@ -55,6 +56,7 @@ jobs:
             --confcutdir=tests/unit_tests/utils \
             tests/unit_tests/utils/ptoss_unitarios_test.py \
             tests/unit_tests/utils/urls_tests.py \
+            tests/unit_tests/utils/version_tests.py \
             --cov=superset.tasks.utils \
             --cov=superset.utils.core \
             --cov=superset.utils.oauth2 \
